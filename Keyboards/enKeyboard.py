@@ -3,7 +3,7 @@ from telebot import types
 def MainMenuKeyboard():
     Keyboard = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     MenuButton1 = types.KeyboardButton('Find picture')
-    MenuButton2 = types.KeyboardButton('Choose language')
+    MenuButton2 = types.KeyboardButton('Change language')
     Keyboard.add(MenuButton1, MenuButton2)
     return Keyboard
 
