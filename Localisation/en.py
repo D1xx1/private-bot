@@ -1,2 +1,3 @@
 changeLanguage = 'English is selected!'
-startMessage = ''
+mainMenu = 'Main menu!'
+infoMessage = 'Bot for...'
