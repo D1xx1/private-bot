@@ -35,11 +35,12 @@ def start(message):
     command = message.text
     chat_id = message.from_user.id
     if command == '/start':
-        cursor.execute(f"SELECT chat_id FROM users WHERE chat_id = '{message.from_user.id}'")
+        cursor.execute(f"SELECT chat_id FROM users WHERE chat_id = '{chat_id}'")
         if cursor.fetchone() is None:
             bot.send_message(chat_id, 'Приветствую! Для начала нужно выбрать желаемый язык.', reply_markup=stkb.startKeyboard())
             cursor.execute(f"INSERT INTO users VALUES (?,?,?,?)", (chat_id,'default','ru',0))
             db.commit()
+            bot.register_next_step_handler_by_chat_id(chat_id, language)
         else:
             cursor.execute(f"SELECT * FROM users WHERE chat_id = '{message.from_user.id}'")
             rows = cursor.fetchone()
@@ -50,7 +51,12 @@ def start(message):
             if lang == 'en':
                 bot.send_message(chat_id, 'Main menu.', reply_markup=enkb.MainMenuKeyboard())
                 bot.register_next_step_handler_by_chat_id(chat_id, enMainMenu)
+    else:
+        bot.send_message(chat_id, '/start')
 
+def language(message):
+    command = message.text
+    chat_id = message.from_user.id
     if command == 'Русский':
         bot.send_message(chat_id, ru.changeLanguage)
         bot.send_message(chat_id, 'Это основное меню.', reply_markup=rukb.MainMenuKeyboard())
@@ -77,8 +83,13 @@ def ruMainMenu(message):
     if command == 'Поиск картинок':
         bot.send_message(chat_id, 'Поиск картинок по запросу. Введите в чат любой запрос и бот найдет для Вас картинку.', reply_markup=rukb.backButton())
         bot.register_next_step_handler_by_chat_id(chat_id, pictFinder)
-    if command == 'Сменить язык':
+    elif command == 'Сменить язык':
         bot.send_message(chat_id, 'Выберите язык.', reply_markup=stkb.startKeyboard())
+        bot.register_next_step_handler_by_chat_id(chat_id, language)
+    else:
+        bot.send_message(chat_id, ru.menuAction)
+        bot.register_next_step_handler_by_chat_id(chat_id, ruMainMenu)
+
 
 def enMainMenu(message):
     chat_id = message.from_user.id
@@ -86,8 +97,12 @@ def enMainMenu(message):
     if command == 'Find picture':
         bot.send_message(chat_id, 'pictFinder', reply_markup=enkb.backButton())
         bot.register_next_step_handler_by_chat_id(chat_id, pictFinder)
-    if command == 'Change language':
+    elif command == 'Change language':
         bot.send_message(chat_id, 'Choose language.', reply_markup=stkb.startKeyboard())
+        bot.register_next_step_handler_by_chat_id(chat_id, language)
+    else:
+        bot.send_message(chat_id,'Choose comand from keyboard.')
+        bot.register_next_step_handler_by_chat_id(chat_id, enMainMenu)
 
 def pictFinder(message):
     command = message.text
