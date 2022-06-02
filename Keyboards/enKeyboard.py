@@ -12,3 +12,10 @@ def backButton():
     MenuButton1 = types.KeyboardButton('Back')
     Keyboard.add(MenuButton1)
     return Keyboard
+
+def adminKeyboard():
+    Keyboard = types.ReplyKeyboardMarkup(row_width=3, resize_keyboard=True)
+    Button1 = types.KeyboardButton('Add')
+    Button2 = types.KeyboardButton('Back')
+    Keyboard.add(Button1,Button2)
+    return Keyboard

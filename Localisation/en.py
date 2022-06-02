@@ -1,4 +1,8 @@
 changeLanguage = 'English is selected!'
+chooseLanguage = 'Choose language'
 mainMenu = 'Main menu!'
 infoMessage = 'Bot for...'
 waitMessage = 'Wait please...'
+menuAction = 'Select a command from the keyboard.'
+pictFinderStart = 'Search for images on request. Enter any request into the chat and the bot will find a picture for you.'
+status = 'Your status: '
