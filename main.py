@@ -2,20 +2,23 @@
 try:
     import Localisation.ru as ru
     import Localisation.kz as kz
-    import Keyboards.ruKeyboard as rukb
-    import Keyboards.startKeyboard as stkb
-    import Keyboards.enKeyboard as enkb
+    import Localisation.en as en
+    import Keyboards.Keyboards as kb
 except ModuleNotFoundError as error:
     input(f'Возникла ошибка: {error}\nОтсутствует файл локалицации.\nНажмите Enter для выхода из программы.')
     quit()
 print('Файлы локализации успешно закружены!')
-from icrawler.builtin import GoogleImageCrawler as gic
-from telebot import TeleBot
-import Localisation.en as en
-import sqlite3
-import os
-import random
-import datetime
+try:
+    from icrawler.builtin import GoogleImageCrawler as gic
+    from telebot import TeleBot
+    import sqlite3
+    import os
+    import random
+    import datetime
+    import pytube
+except ModuleNotFoundError as error:
+    input('Модуль не найден: '+error +'\nНажмите Enter для выхода из программы.')
+    quit()
 
 mainDir = os.getcwd()
 if not os.path.isdir('UserInfo'):
@@ -52,7 +55,7 @@ def start(message):
     if command == '/start':
         cursor.execute(f"SELECT chat_id FROM users WHERE chat_id = '{chat_id}'")
         if cursor.fetchone() is None:
-            bot.send_message(chat_id, 'Приветствую! Для начала нужно выбрать желаемый язык.', reply_markup=stkb.startKeyboard())
+            bot.send_message(chat_id, 'Приветствую! Для начала нужно выбрать желаемый язык.', reply_markup=kb.StartKeyboard.startKeyboard())
             cursor.execute(f"INSERT INTO users VALUES (?,?,?,?)", (chat_id,'default','ru',0))
             db.commit()
             bot.register_next_step_handler_by_chat_id(chat_id, language)
@@ -61,9 +64,9 @@ def start(message):
             rows = cursor.fetchone()
             lang = rows['language']
             if lang == 'ru':
-                bot.send_message(chat_id, ru.mainMenu, reply_markup=rukb.MainMenuKeyboard())
+                bot.send_message(chat_id, ru.mainMenu, reply_markup=kb.RuKeyboard.MainMenuKeyboard())
             if lang == 'en':
-                bot.send_message(chat_id, en.mainMenu, reply_markup=enkb.MainMenuKeyboard())
+                bot.send_message(chat_id, en.mainMenu, reply_markup=kb.EnKeyboard.MainMenuKeyboard())
             bot.register_next_step_handler_by_chat_id(chat_id, mainMenu)
     else:
         bot.send_message(chat_id, '/start')
@@ -72,13 +75,13 @@ def language(message):
     command = message.text
     chat_id = message.from_user.id
     if command == 'Русский':
-        bot.send_message(chat_id, ru.changeLanguage, reply_markup=rukb.MainMenuKeyboard())
+        bot.send_message(chat_id, ru.changeLanguage, reply_markup=kb.RuKeyboard.MainMenuKeyboard())
         cursor.execute("UPDATE users SET language = ? WHERE chat_id = ?",('ru',chat_id))
         db.commit()
         bot.register_next_step_handler_by_chat_id(chat_id, mainMenu)
 
     elif command == 'English':
-        bot.send_message(chat_id, en.changeLanguage, reply_markup=enkb.MainMenuKeyboard())
+        bot.send_message(chat_id, en.changeLanguage, reply_markup=kb.EnKeyboard.MainMenuKeyboard())
         cursor.execute("UPDATE users SET language = ? WHERE chat_id = ?", ('en',chat_id))
         db.commit()
         bot.register_next_step_handler_by_chat_id(chat_id, mainMenu)
@@ -104,16 +107,16 @@ def mainMenu(message):
 
     if (command == 'Поиск картинок' or command == 'Find picture'):
         if lang == 'ru':
-            bot.send_message(chat_id, ru.pictFinderStart, reply_markup=rukb.backButton())
+            bot.send_message(chat_id, ru.pictFinderStart, reply_markup=kb.RuKeyboard.backButton())
         elif lang == 'en':
-            bot.send_message(chat_id, en.pictFinderStart, reply_markup=enkb.backButton())
+            bot.send_message(chat_id, en.pictFinderStart, reply_markup=kb.EnKeyboard.backButton())
         bot.register_next_step_handler_by_chat_id(chat_id, pictFinder)
 
     elif (command == 'Сменить язык' or command == 'Change language'):
         if lang == 'ru':
-            bot.send_message(chat_id, ru.chooseLanguage, reply_markup=stkb.startKeyboard())
+            bot.send_message(chat_id, ru.chooseLanguage, reply_markup=kb.StartKeyboard.startKeyboard())
         elif lang == 'en':
-            bot.send_message(chat_id, en.chooseLanguage, reply_markup=stkb.startKeyboard())
+            bot.send_message(chat_id, en.chooseLanguage, reply_markup=kb.StartKeyboard.startKeyboard())
         bot.register_next_step_handler_by_chat_id(chat_id, language)
 
     elif (command == 'Статус' or command == 'Status'):
@@ -126,11 +129,17 @@ def mainMenu(message):
     elif command == '/admin':
         '''AdminPanel'''
         if status == 'admin':
-            bot.send_message(chat_id, 'Переход в админ-панель...', reply_markup=rukb.adminKeyboard())
+            bot.send_message(chat_id, 'Переход в админ-панель...', reply_markup=kb.RuKeyboard.adminKeyboard())
             bot.register_next_step_handler_by_chat_id(chat_id, adminPanel)
         else:
             bot.send_message(chat_id, 'У вас нет доступа!')
             bot.register_next_step_handler_by_chat_id(chat_id, mainMenu)
+    
+    elif command == 'YouTube Download':
+        '''YouTube Video Downloader'''
+        if lang == 'ru':
+            bot.send_message(chat_id, ru.YouTubeDownloaderWelcome ,reply_markup=kb.RuKeyboard.backButton())
+            bot.register_next_step_handler_by_chat_id(chat_id, youtube)
 
     else:
         if lang == 'ru':
@@ -138,6 +147,36 @@ def mainMenu(message):
         elif lang == 'en':
             bot.send_message(chat_id, en.menuAction)
         bot.register_next_step_handler_by_chat_id(chat_id, mainMenu)
+
+def youtube(message):
+    url = message.text
+    print(url)
+    chat_id = message.from_user.id
+    today = datetime.datetime.today()
+    newName = f'{chat_id}_{today.strftime(f"%Y-%m-%d-%H.%M.%S")}'
+    if not os.path.isdir('Downloads'):
+        os.mkdir('Downloads')
+    path = f'{os.getcwd()}\Downloads\{newName}'
+    try:
+        yt = pytube.YouTube(url)
+        
+    except:
+        bot.send_message(chat_id,'Ссылка не ведёт на видео или введена не ссылка. Попробуйте снова.')
+        bot.register_next_step_handler_by_chat_id(chat_id,youtube)
+    stream = yt.streams.get_by_itag(22)
+    stream.download(output_path=path, filename='video.mp4')
+    with open(os.path.join(path,'video.mp4'),'rb') as video:
+        bot.send_video(chat_id, video=video)
+    # try:
+    #   with open(os.path.join(path, random.choice(os.listdir(path))),'rb') as video:
+    #     video = video
+    #     bot.send_video(chat_id, video, reply_to_message_id=message.id, reply_markup=kb.RuKeyboard.MainMenuKeyboard())
+    #     bot.register_next_step_handler_by_chat_id(chat_id, mainMenu)
+    # except:
+    #     bot.send_message(chat_id, 'Ошибка...')
+
+    
+
 
 def pictFinder(message):
     command = message.text
@@ -148,9 +187,9 @@ def pictFinder(message):
 
     if (command == 'Назад' or command == 'Back'):
         if lang == 'ru':
-            bot.send_message(chat_id, ru.mainMenu, reply_markup=rukb.MainMenuKeyboard())
+            bot.send_message(chat_id, ru.mainMenu, reply_markup=kb.RuKeyboard.MainMenuKeyboard())
         if lang == 'en':
-            bot.send_message(chat_id, en.mainMenu, reply_markup=enkb.MainMenuKeyboard())
+            bot.send_message(chat_id, en.mainMenu, reply_markup=kb.EnKeyboard.MainMenuKeyboard())
         bot.register_next_step_handler_by_chat_id(chat_id, mainMenu)
 
     else:
@@ -162,16 +201,16 @@ def pictFinder(message):
             directory = f'{os.getcwd()}\Downloads\{chat_id}_{today.strftime(f"%Y-%m-%d-%H.%M.%S")}'
             google_crawler = gic(storage={'root_dir':f'{directory}'})
             if lang == 'ru':
-                bot.send_message(chat_id, ru.waitMessage, reply_markup=stkb.removeKeyboard())
+                bot.send_message(chat_id, ru.waitMessage, reply_markup=kb.StartKeyboard.removeKeyboard())
             if lang == 'en':
-                bot.send_message(chat_id, en.waitMessage, reply_markup=stkb.removeKeyboard())
+                bot.send_message(chat_id, en.waitMessage, reply_markup=kb.StartKeyboard.removeKeyboard())
             google_crawler.crawl(keyword=command, max_num=10)
             with open(os.path.join(directory, random.choice(os.listdir(directory))),'rb') as photo:
                 photo = photo
                 if lang == 'ru':
-                    bot.send_photo(chat_id, photo, reply_to_message_id=message.id, reply_markup=rukb.MainMenuKeyboard())
+                    bot.send_photo(chat_id, photo, reply_to_message_id=message.id, reply_markup=kb.RuKeyboard.MainMenuKeyboard())
                 if lang == 'en':
-                    bot.send_photo(chat_id, photo, reply_to_message_id=message.id, reply_markup=enkb.MainMenuKeyboard())
+                    bot.send_photo(chat_id, photo, reply_to_message_id=message.id, reply_markup=kb.EnKeyboard.MainMenuKeyboard())
                 bot.register_next_step_handler_by_chat_id(chat_id, mainMenu)
             os.chdir('Downloads')
             os.rename(f'{chat_id}_{today.strftime(f"%Y-%m-%d-%H.%M.%S")}', newName)
@@ -193,9 +232,9 @@ def adminPanel(message):
     lang = rows['language']
     if (command == 'Назад' or command == 'Back'):
         if lang == 'ru':
-            bot.send_message(chat_id, ru.mainMenu, reply_markup=rukb.MainMenuKeyboard())
+            bot.send_message(chat_id, ru.mainMenu, reply_markup=kb.RuKeyboard.MainMenuKeyboard())
         elif lang == 'en':
-            bot.send_message(chat_id, en.mainMenu, reply_markup=enkb.MainMenuKeyboard())
+            bot.send_message(chat_id, en.mainMenu, reply_markup=kb.EnKeyboard.MainMenuKeyboard())
         bot.register_next_step_handler_by_chat_id(chat_id, mainMenu)
     elif (command == 'Добавить' or command == 'Add'):
         if lang == 'ru':
@@ -207,5 +246,6 @@ def adminPanel(message):
         bot.send_message(chat_id, 'Не выполнено...')
         bot.register_next_step_handler_by_chat_id(chat_id, adminPanel)
 # ================================================================================================
+
 
 bot.polling(True)

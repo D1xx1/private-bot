@@ -1,0 +1,2 @@
+python updater.py
+pause
